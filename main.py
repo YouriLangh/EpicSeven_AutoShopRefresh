@@ -7,13 +7,21 @@ import pyautogui
 import time
 from datetime import datetime,timedelta
 import keyboard
+import re
 
-
+# Pixels are hardcoded for a screen of 1278 x 733
 def get_game_window():
     windows = gw.getWindowsWithTitle("BlueStacks App Player")  # Find the game window
     if windows:
         return windows[0]
     return None
+
+def extract_text2(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
+    config_numbers = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789,'
+    numbers = pytesseract.image_to_string(gray, config=config_numbers)
+    text = pytesseract.image_to_string(gray, config=config_numbers)
+    return text
 
 def extract_text(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
@@ -39,7 +47,7 @@ def scroll_shop():
     pyautogui.moveTo(game_window.left, game_window.top)
     pyautogui.moveTo(game_window.left + 700, game_window.top + 400)
     relative_click_and_drag()
-    time.sleep(0.5)
+    time.sleep(0.6)
 
 def capture_cropped_region(left, top, width, height):
     """
@@ -62,13 +70,23 @@ def capture_cropped_region(left, top, width, height):
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # Convert to BGR
         return img
 
+def extract_numbers(string):
+    return ''.join(re.findall(r'\d+', string))
+
 def get_gold():
-    gold_string = extract_text(capture_cropped_region(left=795, top= 51, width= 110, height= 60))
-    return float(gold_string.strip('\n').strip('').replace(',', ''))
+    gold_string = extract_text2(capture_cropped_region(left=800, top= 51, width= 110, height= 60))
+    gold_string2 = extract_numbers(gold_string)
+    return float(gold_string2)
 
 def get_ss():
-    gold_string = extract_text(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
-    return float(gold_string.strip('\n').strip('').replace(',', ''))
+    gold_string = extract_text2(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
+    print(gold_string)
+    if gold_string == "":
+        gold_string = extract_text2(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
+    gold_string2 = extract_numbers(gold_string)
+    ss_number = float(gold_string2)
+
+    return ss_number
 
 def read_shop_item(item, scroll):
     top = 125
@@ -77,47 +95,51 @@ def read_shop_item(item, scroll):
     top = top + (item * 135)
     for_sale = capture_cropped_region(652,top,310,110)
     item_text = extract_text(for_sale)
-    print(item_text)
     if ("Covenant" in item_text and "Bookmarks" in item_text and "Summon" in item_text) or ("Mystic" in item_text and "Medals" in item_text and "Summon" in item_text):
-        print("I found something")
         game_window = get_game_window()
         pyautogui.moveTo(game_window.left + 1115, game_window.top + top + 75)
         pyautogui.click()
         time.sleep(1)
         pyautogui.moveTo(game_window.left + 700, game_window.top + 530)
         pyautogui.click()
-        time.sleep(2.5)
+        time.sleep(2)
+
+global skip_checks
+skip_checks = 0
 
 def buy_shop():
-    gold = get_gold()
-    skystones = get_ss()
-    print(skystones)
-    print(gold)
-    if gold < 10_000_000 or skystones < 2_000:
-        return
+    if skip_checks % 100 == 0:
+        gold = get_gold()
+        print(gold)
+        skystones = get_ss()
+        print(skystones)
+        if gold < 10_000_000 or skystones < 2_000:
+            return
+
     for i in range(2):
         read_shop_item(i, False)
     scroll_shop()
+
     for i in range(5):
         read_shop_item(i, True)
     time.sleep(1)
-    game_window = get_game_window()
-
+    
     # Refresh the shop
     pyautogui.moveTo(game_window.left + 235, game_window.top + 680)
     pyautogui.click()
-    time.sleep(0.5)
+    time.sleep(1.3)
     pyautogui.moveTo(game_window.left + 720, game_window.top + 460)
-    time.sleep(0.5)
-    #pyautogui.click()
+    pyautogui.click()
     time.sleep(1)
 
 if __name__ == "__main__":
-    buy_shop()
-    # start = datetime.now()
-    # end_time = start + timedelta(hours=0.5)
-    # while datetime.now() < end_time:
-    #     buy_shop()
+    game_window = get_game_window()
+    pyautogui.moveTo(game_window.left + 5, game_window.top + 5)
+    pyautogui.click()
+    start = datetime.now()
+    end_time = start + timedelta(minutes=30)
+    while datetime.now() < end_time:
+        buy_shop()
 
     
 
