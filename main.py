@@ -19,7 +19,6 @@ def get_game_window():
 def extract_text2(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
     config_numbers = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789,'
-    numbers = pytesseract.image_to_string(gray, config=config_numbers)
     text = pytesseract.image_to_string(gray, config=config_numbers)
     return text
 
@@ -79,7 +78,7 @@ def get_gold():
     return float(gold_string2)
 
 def get_ss():
-    gold_string = extract_text2(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
+    gold_string = extract_text2(capture_cropped_region(left=942, top= 45, width= 75, height= 40))
     print(gold_string)
     if gold_string == "":
         gold_string = extract_text2(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
@@ -108,14 +107,14 @@ global skip_checks
 skip_checks = 0
 
 def buy_shop():
-    if skip_checks % 100 == 0:
+    if skip_checks % 1000 == 0:
         gold = get_gold()
         print(gold)
         skystones = get_ss()
         print(skystones)
         if gold < 10_000_000 or skystones < 2_000:
             return
-
+    
     for i in range(2):
         read_shop_item(i, False)
     scroll_shop()
@@ -140,6 +139,7 @@ if __name__ == "__main__":
     end_time = start + timedelta(minutes=30)
     while datetime.now() < end_time:
         buy_shop()
+        skip_checks +=1
 
     
 
