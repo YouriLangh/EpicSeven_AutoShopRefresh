@@ -8,6 +8,7 @@ import time
 from datetime import datetime,timedelta
 import keyboard
 import re
+import tkinter
 
 # Pixels are hardcoded for a screen of 1278 x 733
 def get_game_window():
@@ -87,27 +88,43 @@ def get_ss():
 
     return ss_number
 
+
+mystic_counter = 0
+covenant_counter = 0
+
 def read_shop_item(item, scroll):
+    global mystic_counter
+    global covenant_counter
     top = 125
     if(scroll):
         top += 65
     top = top + (item * 135)
     for_sale = capture_cropped_region(652,top,310,110)
     item_text = extract_text(for_sale)
-    if ("Covenant" in item_text and "Bookmarks" in item_text and "Summon" in item_text) or ("Mystic" in item_text and "Medals" in item_text and "Summon" in item_text):
+    if ("Covenant" in item_text and "Bookmarks" in item_text and "Summon" in item_text):
         game_window = get_game_window()
         pyautogui.moveTo(game_window.left + 1115, game_window.top + top + 75)
         pyautogui.click()
         time.sleep(1)
         pyautogui.moveTo(game_window.left + 700, game_window.top + 530)
         pyautogui.click()
+        covenant_counter += 1
+        time.sleep(2)
+    if ("Mystic" in item_text and "Medals" in item_text and "Summon" in item_text):
+        game_window = get_game_window()
+        pyautogui.moveTo(game_window.left + 1115, game_window.top + top + 75)
+        pyautogui.click()
+        time.sleep(1)
+        pyautogui.moveTo(game_window.left + 700, game_window.top + 530)
+        pyautogui.click()
+        mystic_counter+= 1
         time.sleep(2)
 
 global skip_checks
 skip_checks = 0
 
 def buy_shop():
-    if skip_checks % 1000 == 0:
+    if skip_checks % 10000 == 0:
         gold = get_gold()
         print(gold)
         skystones = get_ss()
@@ -132,14 +149,17 @@ def buy_shop():
     time.sleep(1)
 
 if __name__ == "__main__":
-    game_window = get_game_window()
-    pyautogui.moveTo(game_window.left + 5, game_window.top + 5)
-    pyautogui.click()
-    start = datetime.now()
-    end_time = start + timedelta(minutes=30)
-    while datetime.now() < end_time:
-        buy_shop()
-        skip_checks +=1
+    # top = tkinter.Tk()
+    # top.mainloop()
+    # game_window = get_game_window()
+    # pyautogui.moveTo(game_window.left + 5, game_window.top + 5)
+    # pyautogui.click()
+    # start = datetime.now()
+    # end_time = start + timedelta(minutes=90)
+    # while datetime.now() < end_time:
+    #     buy_shop()
+    #     skip_checks +=1
+    # print(f"{covenant_counter} Covenent BMs bought and {mystic_counter} Mystics bought")
 
     
 
