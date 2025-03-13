@@ -6,160 +6,205 @@ import pygetwindow as gw
 import pyautogui
 import time
 from datetime import datetime,timedelta
-import keyboard
 import re
 import tkinter
 
-# Pixels are hardcoded for a screen of 1278 x 733
+BLUESTACKS = False
+WINDOW_START_X = 0
+WINDOW_START_Y = 0
+CHECK_EVERY = 1000
+MINIMUM_GOLD = 10_000_000
+MINIMUM_SKYSTONES = 2_000
+PRINT_EVERY = 100
+SCROLL_DELAY = 0.6
+POST_CYCLE_DELAY = 1.0
+REFRESH_TOGGLE_DELAY = 1.3
+POST_REFRESH_DELAY = 1
+TITLE_BAR_SIZE = 30 #23 for large screen
+POST_BUY_ITEM_CLICK_DELAY = 1
+
+mystic_counter = 0
+covenant_counter = 0
+number_refreshes = 0
+
+
+
+# Current screen size: 1250 x 733 
+#TODO: Add a force resize to this size perhaps ^ >> Bottom right corner is poorly captured --> impossible?
+# TODO: REplace every exception with a GUI error
+# TODO: Convert every pixel position with percentage (function??) based on the window size, but window size is incorrectly captured?
+
+#<< Window utils >>#
 def get_game_window():
-    windows = gw.getWindowsWithTitle("BlueStacks App Player")  # Find the game window
+    """ Get the correct game window depending on which launcher is being used """
+    window_title = "BlueStacks App Player" if BLUESTACKS else "Epic Seven"
+    windows = gw.getWindowsWithTitle(window_title) 
     if windows:
         return windows[0]
-    return None
+    raise Exception("Game window not found, please open Epic Seven.")
 
-def extract_text2(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-    config_numbers = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789,'
-    text = pytesseract.image_to_string(gray, config=config_numbers)
-    return text
+#<< Image processing >>#
+def preprocess_image(img):
+    """ Remove background noise and create a larger differentiation between text """
+    _, thresh = cv2.threshold(img, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # Binarization
+    denoised = cv2.medianBlur(thresh, 3)  # Noise removal
+    return denoised
 
-def extract_text(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-    text = pytesseract.image_to_string(gray)
-    return text
+def extract_text(img, is_number):
+    """ Extract the text from a preprocessed image """
+    preprocessed_img = preprocess_image(img)
+    config_numbers = r'--psm 7 -c tessedit_char_whitelist=0123456789,' # oem of 3 uses default OCR engine mode, psm of 7 assumes it is a single line of text
+    config_general = r'--psm 4'
 
-def relative_click_and_drag():
-    """Click and drag inside the BlueStacks window."""
-    game_window = get_game_window()
-    if game_window:
-        base_x, base_y = game_window.left, game_window.top
-        pyautogui.moveTo(game_window.left + 700, game_window.top + 400)  # Move to start position
-        pyautogui.mouseDown()  # Click
-        pyautogui.moveTo(game_window.left + 700, game_window.top + 400 + -300, duration=0.2)  # Drag
-        pyautogui.mouseUp()  # Release mouse
-
-
-def scroll_shop():
-    game_window = get_game_window()
-    if not game_window:
-        print("Epic Seven window not found!")
-        return None
-    pyautogui.moveTo(game_window.left, game_window.top)
-    pyautogui.moveTo(game_window.left + 700, game_window.top + 400)
-    relative_click_and_drag()
-    time.sleep(0.6)
+    config = config_numbers if is_number else config_general
+    return pytesseract.image_to_string(preprocessed_img, config=config)
 
 def capture_cropped_region(left, top, width, height):
     """
     Capture a specific region of the screen.
     region = {"left": x, "top": y, "width": w, "height": h}
     """
-    game_window = get_game_window()
-    if not game_window:
-        print("Epic Seven window not found!")
-        return None
     with mss.mss() as sct:
         monitor = {
-            "left": game_window.left + left,
-            "top": game_window.top + top,
+            "left": WINDOW_START_X + left,
+            "top": WINDOW_START_Y + top,
             "width": width,
             "height": height
         }
         screenshot = sct.grab(monitor)
         img = np.array(screenshot)
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # Convert to BGR
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         return img
 
-def extract_numbers(string):
-    return ''.join(re.findall(r'\d+', string))
 
+
+#<< Click utils >>#
+def scroll_shop():
+    """ Click and drag inside the shop to show more items. """
+    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400)  # Move to start position
+    pyautogui.mouseDown()  # Click
+    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400 + -200, duration=0.2)  # Drag
+    pyautogui.mouseUp()  # Release mouse
+    time.sleep(SCROLL_DELAY)
+
+def refresh_shop():
+    """ Refreshes the shop. """
+    pyautogui.moveTo(WINDOW_START_X + 235, WINDOW_START_Y + 680)
+    pyautogui.click()
+    time.sleep(REFRESH_TOGGLE_DELAY)
+    pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 460)
+    #pyautogui.click()
+    time.sleep(POST_REFRESH_DELAY)
+
+#<< Extra utils >>#
+def clean_number(text):
+    """ Removes `(`   `,`   `\n`   from a given string. """
+    return re.sub(r"[\n,(]", "", text)
+
+
+#<< Epic Seven utils >>#
 def get_gold():
-    gold_string = extract_text2(capture_cropped_region(left=800, top= 51, width= 110, height= 60))
-    gold_string2 = extract_numbers(gold_string)
-    return float(gold_string2)
+    """ Retrieves the current number of gold the player has. """
+    gold_string = extract_text(capture_cropped_region(left=785, top= 50, width= 110, height= 30), True)
+    return float(clean_number(gold_string))
 
 def get_ss():
-    gold_string = extract_text2(capture_cropped_region(left=942, top= 45, width= 75, height= 40))
-    print(gold_string)
-    if gold_string == "":
-        gold_string = extract_text2(capture_cropped_region(left=935, top= 51, width= 70, height= 60))
-    gold_string2 = extract_numbers(gold_string)
-    ss_number = float(gold_string2)
+    """ Retrieves the current number of skystones the player has. """
+    skystones_string = extract_text(capture_cropped_region(left=942, top= 45, width= 75, height= 40), True)
+    return float(clean_number(skystones_string))
 
-    return ss_number
+def enough_resources():
+    """ Check whether the amount of resources the player has are lower than the set thresholds."""
+    return True
+    gold = get_gold()
+    skystones = get_ss()
+    return (gold > MINIMUM_GOLD) and (skystones > MINIMUM_SKYSTONES)
+    
+def process_shop_items(item_count, scroll):
+    """Reads shop items, differentiating pre-scroll and post-scroll items."""
+    for i in range(item_count):
+        read_shop_item(i, scroll)
 
-
-mystic_counter = 0
-covenant_counter = 0
-
-def read_shop_item(item, scroll):
-    global mystic_counter
-    global covenant_counter
-    top = 125
-    if(scroll):
-        top += 65
-    top = top + (item * 135)
-    for_sale = capture_cropped_region(652,top,310,110)
-    item_text = extract_text(for_sale)
-    if ("Covenant" in item_text and "Bookmarks" in item_text and "Summon" in item_text):
-        game_window = get_game_window()
-        pyautogui.moveTo(game_window.left + 1115, game_window.top + top + 75)
-        pyautogui.click()
-        time.sleep(1)
-        pyautogui.moveTo(game_window.left + 700, game_window.top + 530)
-        pyautogui.click()
-        covenant_counter += 1
-        time.sleep(2)
-    if ("Mystic" in item_text and "Medals" in item_text and "Summon" in item_text):
-        game_window = get_game_window()
-        pyautogui.moveTo(game_window.left + 1115, game_window.top + top + 75)
-        pyautogui.click()
-        time.sleep(1)
-        pyautogui.moveTo(game_window.left + 700, game_window.top + 530)
-        pyautogui.click()
-        mystic_counter+= 1
-        time.sleep(2)
-
-global skip_checks
-skip_checks = 0
 
 def buy_shop():
-    if skip_checks % 10000 == 0:
-        gold = get_gold()
-        print(gold)
-        skystones = get_ss()
-        print(skystones)
-        if gold < 10_000_000 or skystones < 2_000:
-            return
-    
-    for i in range(2):
-        read_shop_item(i, False)
+    """Handles buying items from the shop, refreshing when needed."""
+    if number_refreshes % CHECK_EVERY == 0:
+        if not(enough_resources()):
+            raise Exception("Insufficient resources, shop refreshing stopped.")
+
+    process_shop_items(2, scroll=False) # Nr of items to buy from (used for coordinate estimation)
+
     scroll_shop()
 
-    for i in range(5):
-        read_shop_item(i, True)
-    time.sleep(1)
+    process_shop_items(5, scroll=True)
+
+    time.sleep(POST_CYCLE_DELAY)
     
     # Refresh the shop
-    pyautogui.moveTo(game_window.left + 235, game_window.top + 680)
+    refresh_shop()
+
+#TODO: Fix pixel positions
+
+def read_shop_item(item, scroll):
+    top = 113 - TITLE_BAR_SIZE
+    item_height = 103
+    padding = 37
+    button_center = 80
+    item_left = 652
+    item_width = 450
+    item_height = 122
+    if(scroll):
+        top = 154 #title-bar size already deduced
+    top = top + (item * 140)
+    for_sale = capture_cropped_region(item_left,top,item_width,item_height)
+    item_text = extract_text(for_sale, False)
+
+    if "Summon" not in item_text:
+        return  # Early exit if "Summon" is not in text
+    
+    is_covenant = "Covenant" in item_text and "Bookmarks" in item_text
+    is_mystic = "Mystic" in item_text and "Medals" in item_text
+
+    if not (is_covenant or is_mystic):
+        return  # If neither, exit function
+
+    # Buy the summon
+    pyautogui.moveTo(WINDOW_START_X + 1116, WINDOW_START_Y + top + 80) # Button center
     pyautogui.click()
-    time.sleep(1.3)
-    pyautogui.moveTo(game_window.left + 720, game_window.top + 460)
+
+    time.sleep(POST_BUY_ITEM_CLICK_DELAY)
+
+    pyautogui.moveTo(WINDOW_START_X  + 690, WINDOW_START_Y + 490)
     pyautogui.click()
-    time.sleep(1)
+
+    # Update the appropriate counter
+    global covenant_counter, mystic_counter
+    if is_covenant:
+        covenant_counter += 1
+    else:
+        mystic_counter += 1 
+    time.sleep(2)
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     # top = tkinter.Tk()
     # top.mainloop()
-    # game_window = get_game_window()
-    # pyautogui.moveTo(game_window.left + 5, game_window.top + 5)
-    # pyautogui.click()
-    # start = datetime.now()
-    # end_time = start + timedelta(minutes=90)
-    # while datetime.now() < end_time:
-    #     buy_shop()
-    #     skip_checks +=1
-    # print(f"{covenant_counter} Covenent BMs bought and {mystic_counter} Mystics bought")
+    game_window = get_game_window()
+    WINDOW_START_X = game_window.left
+    WINDOW_START_Y = game_window.top + TITLE_BAR_SIZE
 
-    
+    start = datetime.now()
+    end_time = start + timedelta(minutes=1)
+    while datetime.now() < end_time:
+        buy_shop()
+        number_refreshes +=1
+        if number_refreshes % PRINT_EVERY == 0:
+            print(f"{covenant_counter} Covenent BMs bought and {mystic_counter} Mystics bought")
+
 
