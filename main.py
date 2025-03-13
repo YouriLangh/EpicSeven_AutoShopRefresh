@@ -16,12 +16,12 @@ CHECK_EVERY = 1000
 MINIMUM_GOLD = 10_000_000
 MINIMUM_SKYSTONES = 2_000
 PRINT_EVERY = 100
-SCROLL_DELAY = 0.6
-POST_CYCLE_DELAY = 1.0
-REFRESH_TOGGLE_DELAY = 1.3
+SCROLL_DELAY = 0.3
+POST_CYCLE_DELAY = 1
+REFRESH_TOGGLE_DELAY = 1
 POST_REFRESH_DELAY = 1
-TITLE_BAR_SIZE = 30 #23 for large screen
-POST_BUY_ITEM_CLICK_DELAY = 1
+TITLE_BAR_SIZE = 30  # 23 for large screen
+POST_BUY_ITEM_CLICK_DELAY = 0.6
 
 mystic_counter = 0
 covenant_counter = 0
@@ -87,12 +87,12 @@ def scroll_shop():
     pyautogui.mouseUp()  # Release mouse
     time.sleep(SCROLL_DELAY)
 
-def refresh_shop():
+def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
-    pyautogui.moveTo(WINDOW_START_X + 235, WINDOW_START_Y + 680)
+    pyautogui.moveTo(WINDOW_START_X + 235, WINDOW_START_Y + 650)
     pyautogui.click()
     time.sleep(REFRESH_TOGGLE_DELAY)
-    pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 460)
+    pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 430)
     #pyautogui.click()
     time.sleep(POST_REFRESH_DELAY)
 
@@ -104,18 +104,17 @@ def clean_number(text):
 
 #<< Epic Seven utils >>#
 def get_gold():
-    """ Retrieves the current number of gold the player has. """
-    gold_string = extract_text(capture_cropped_region(left=785, top= 50, width= 110, height= 30), True)
+    """ Retrieves the current amount of gold the player has. """
+    gold_string = extract_text(capture_cropped_region(left=785, top= 17, width= 110, height= 30), True)
     return float(clean_number(gold_string))
 
 def get_ss():
     """ Retrieves the current number of skystones the player has. """
-    skystones_string = extract_text(capture_cropped_region(left=942, top= 45, width= 75, height= 40), True)
+    skystones_string = extract_text(capture_cropped_region(left=927, top= 17, width= 75, height= 30), True)
     return float(clean_number(skystones_string))
 
 def enough_resources():
     """ Check whether the amount of resources the player has are lower than the set thresholds."""
-    return True
     gold = get_gold()
     skystones = get_ss()
     return (gold > MINIMUM_GOLD) and (skystones > MINIMUM_SKYSTONES)
@@ -138,8 +137,8 @@ def buy_shop():
 
     process_shop_items(5, scroll=True)
 
-    time.sleep(POST_CYCLE_DELAY)
-    
+
+    print(POST_CYCLE_DELAY)
     # Refresh the shop
     refresh_shop()
 
@@ -158,7 +157,7 @@ def read_shop_item(item, scroll):
     top = top + (item * 140)
     for_sale = capture_cropped_region(item_left,top,item_width,item_height)
     item_text = extract_text(for_sale, False)
-
+    print(item_text)
     if "Summon" not in item_text:
         return  # Early exit if "Summon" is not in text
     
@@ -200,7 +199,7 @@ if __name__ == "__main__":
     WINDOW_START_Y = game_window.top + TITLE_BAR_SIZE
 
     start = datetime.now()
-    end_time = start + timedelta(minutes=1)
+    end_time = start + timedelta(seconds=10)
     while datetime.now() < end_time:
         buy_shop()
         number_refreshes +=1
