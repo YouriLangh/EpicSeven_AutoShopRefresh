@@ -27,7 +27,7 @@ mystic_counter = 0
 covenant_counter = 0
 number_refreshes = 0
 
-
+TOP_BAR_SIZE = 20
 
 # Current screen size: 1250 x 733 
 #TODO: Add a force resize to this size perhaps ^ >> Bottom right corner is poorly captured --> impossible?
@@ -81,18 +81,18 @@ def capture_cropped_region(left, top, width, height):
 #<< Click utils >>#
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
-    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400)  # Move to start position
+    pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 500)  # Move to start position
     pyautogui.mouseDown()  # Click
-    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400 + -200, duration=0.2)  # Drag
+    pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 50 , duration=0.4)  # Drag
     pyautogui.mouseUp()  # Release mouse
     time.sleep(SCROLL_DELAY)
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
-    pyautogui.moveTo(WINDOW_START_X + 235, WINDOW_START_Y + 650)
+    pyautogui.moveTo(WINDOW_START_X + 375, WINDOW_START_Y + 930)
     pyautogui.click()
     time.sleep(REFRESH_TOGGLE_DELAY)
-    pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 430)
+    pyautogui.moveTo(WINDOW_START_X + 1100, WINDOW_START_Y + 650)
     if(REFRESH_SHOP): pyautogui.click()
     time.sleep(POST_REFRESH_DELAY)
 
@@ -106,13 +106,13 @@ def clean_number(text):
 def get_gold():
     """ Retrieves the current amount of gold the player has. """
 
-    gold_string = extract_text(capture_cropped_region(left=800, top= 17, width= 130, height= 30), True)
+    gold_string = extract_text(capture_cropped_region(left=1266, top= 32, width= 150, height= 50), True)
     return float(clean_number(gold_string))
 
 def get_ss():
 
     """ Retrieves the current number of skystones the player has. """
-    skystones_string = extract_text(capture_cropped_region(left=940, top= 17, width= 75, height= 30), True)
+    skystones_string = extract_text(capture_cropped_region(left=1473, top= 36, width= 100, height= 50), True)
     return float(clean_number(skystones_string))
 
 def enough_resources():
@@ -148,16 +148,16 @@ def buy_shop():
 #TODO: Fix pixel positions
 
 def read_shop_item(item, scroll):
-    top = 117 
-    item_height = 103
-    padding = 37
+    top = 151 - TOP_BAR_SIZE
+    item_height = 140
+    padding = 55
     button_center = 80
-    item_left = 671
-    item_width = 350
-    item_height = 100
+    item_left = 1000
+    item_width = 400
+
     if(scroll):
-        top = 190 #title-bar size already deduced
-    top = top + (item * 140)
+        top = 277 - TOP_BAR_SIZE #title-bar size already deduced
+    top = top + (item * 205)
     for_sale = capture_cropped_region(item_left,top,item_width,item_height)
     item_text = extract_text(for_sale, False)
     print(item_text)
@@ -171,12 +171,12 @@ def read_shop_item(item, scroll):
         return  # If neither, exit function
 
     # Buy the summon
-    pyautogui.moveTo(WINDOW_START_X + 1116, WINDOW_START_Y + top + 80) # Button center
+    pyautogui.moveTo(WINDOW_START_X + 1700, WINDOW_START_Y + top + 100) # Button center
     pyautogui.click()
 
     time.sleep(POST_BUY_ITEM_CLICK_DELAY)
 
-    pyautogui.moveTo(WINDOW_START_X  + 690, WINDOW_START_Y + 490)
+    pyautogui.moveTo(WINDOW_START_X  + 1115, WINDOW_START_Y + 730)
     pyautogui.click()
 
     # Update the appropriate counter
