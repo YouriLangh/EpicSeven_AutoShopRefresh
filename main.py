@@ -22,7 +22,7 @@ REFRESH_TOGGLE_DELAY = 1
 POST_REFRESH_DELAY = 1
 TITLE_BAR_SIZE = 30  # 23 for large screen
 POST_BUY_ITEM_CLICK_DELAY = 0.6
-
+BUY_SHOP = False
 mystic_counter = 0
 covenant_counter = 0
 number_refreshes = 0
@@ -93,7 +93,8 @@ def refresh_shop(): #Already accounts for title_bar size
     pyautogui.click()
     time.sleep(REFRESH_TOGGLE_DELAY)
     pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 430)
-    #pyautogui.click()
+    if BUY_SHOP:
+        pyautogui.click()
     time.sleep(POST_REFRESH_DELAY)
 
 #<< Extra utils >>#
