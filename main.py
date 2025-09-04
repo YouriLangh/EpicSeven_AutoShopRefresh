@@ -1,3 +1,4 @@
+import random
 import cv2
 import numpy as np
 import pytesseract
@@ -42,7 +43,6 @@ def get_game_window():
 
     # Look for Window objects that contain the expected title
     windows = [w for w in gw.getAllWindows() if window_title in w.title]
-    print([w.title for w in windows])  # Debug: show matching titles
 
     if windows:
         return windows[0]  # Return the actual Window object
@@ -87,23 +87,23 @@ def capture_cropped_region(left, top, width, height):
 #<< Click utils >>#
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
-    pyautogui.moveTo(1093, 488)  # Move to start position
+    pyautogui.moveTo(int(1093+ random.uniform(-10, 10)), int(488 + random.uniform(-10, 10)))  # Move to start position
     # pyautogui.mouseDown()  # Click
     # Scroll a little
-    pyautogui.scroll(-650)  # Scroll down
+    pyautogui.scroll(int(-650 + random.uniform(-10, 10)))  # Scroll down
     # pyautogui.moveTo(1093, 488 -200, duration=0.3)  # Drag
     # pyautogui.mouseUp()  # Release mouse
-    time.sleep(SCROLL_DELAY)
+    time.sleep(SCROLL_DELAY + random.uniform(-0.15, 0.15))  # Wait for the scroll to complete
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
-    pyautogui.moveTo(378, 945)
+    pyautogui.moveTo(int(378+ random.uniform(-5, 5)), 945)
     pyautogui.click()
-    time.sleep(REFRESH_TOGGLE_DELAY)
-    pyautogui.moveTo(1155, 664)
+    time.sleep(REFRESH_TOGGLE_DELAY+ random.uniform(-0.15, 0.15))
+    pyautogui.moveTo(int(1155+ random.uniform(-5, 5)), 664)
     if BUY_SHOP:
         pyautogui.click()
-    time.sleep(POST_REFRESH_DELAY)
+    time.sleep(POST_REFRESH_DELAY+ random.uniform(-0.15, 0.15))
 
 #<< Extra utils >>#
 def clean_number(text):
@@ -147,7 +147,7 @@ def buy_shop():
     process_shop_items(5, scroll=True)
 
 
-    print(POST_CYCLE_DELAY)
+    time.sleep(POST_CYCLE_DELAY+ random.uniform(-0.15, 0.15))
     # Refresh the shop
     refresh_shop()
 
@@ -176,12 +176,12 @@ def read_shop_item(item, scroll):
         return  # If neither, exit function
 
     # Buy the summon
-    pyautogui.moveTo(1650, WINDOW_START_Y + top + 100) # Button center
+    pyautogui.moveTo(int(1650 + random.uniform(-5, 5)), int(WINDOW_START_Y + top + 100)) # Button center
     pyautogui.click()
 
-    time.sleep(POST_BUY_ITEM_CLICK_DELAY)
+    time.sleep(POST_BUY_ITEM_CLICK_DELAY+ random.uniform(-0.15, 0.15))
 
-    pyautogui.moveTo(1136,739)
+    pyautogui.moveTo(int(1136 + random.uniform(-5, 5)), 739)
     pyautogui.click()
 
     # Update the appropriate counter
@@ -207,7 +207,6 @@ if __name__ == "__main__":
     time.sleep(0.8)  # Wait for the window to come to the foreground
     WINDOW_START_X = 6
     WINDOW_START_Y = game_window.top + 11
-    print(WINDOW_START_Y)
     pyautogui.moveTo(WINDOW_START_X, WINDOW_START_Y)
     # pyautogui.click()
     start = datetime.now()
