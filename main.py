@@ -16,13 +16,14 @@ CHECK_EVERY = 1000
 MINIMUM_GOLD = 10_000_000
 MINIMUM_SKYSTONES = 2_000
 PRINT_EVERY = 100
-SCROLL_DELAY = 0.3
+SCROLL_DELAY = 0.8
 POST_CYCLE_DELAY = 1
 REFRESH_TOGGLE_DELAY = 1
-POST_REFRESH_DELAY = 1
+POST_REFRESH_DELAY = 1.4
 TITLE_BAR_SIZE = 30  # 23 for large screen
 POST_BUY_ITEM_CLICK_DELAY = 0.6
-BUY_SHOP = False
+REFRESH_TIME_IN_SECONDS = 60 * 30  # 30 minutes
+BUY_SHOP = True
 mystic_counter = 0
 covenant_counter = 0
 number_refreshes = 0
@@ -36,12 +37,17 @@ number_refreshes = 0
 
 #<< Window utils >>#
 def get_game_window():
-    """ Get the correct game window depending on which launcher is being used """
+    """Get the correct game window depending on which launcher is being used"""
     window_title = "BlueStacks App Player" if BLUESTACKS else "Epic Seven"
-    windows = gw.getWindowsWithTitle(window_title) 
+
+    # Look for Window objects that contain the expected title
+    windows = [w for w in gw.getAllWindows() if window_title in w.title]
+    print([w.title for w in windows])  # Debug: show matching titles
+
     if windows:
-        return windows[0]
+        return windows[0]  # Return the actual Window object
     raise Exception("Game window not found, please open Epic Seven.")
+
 
 #<< Image processing >>#
 def preprocess_image(img):
@@ -81,18 +87,20 @@ def capture_cropped_region(left, top, width, height):
 #<< Click utils >>#
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
-    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400)  # Move to start position
-    pyautogui.mouseDown()  # Click
-    pyautogui.moveTo(WINDOW_START_X + 700, WINDOW_START_Y + 400 + -200, duration=0.2)  # Drag
-    pyautogui.mouseUp()  # Release mouse
+    pyautogui.moveTo(1093, 488)  # Move to start position
+    # pyautogui.mouseDown()  # Click
+    # Scroll a little
+    pyautogui.scroll(-650)  # Scroll down
+    # pyautogui.moveTo(1093, 488 -200, duration=0.3)  # Drag
+    # pyautogui.mouseUp()  # Release mouse
     time.sleep(SCROLL_DELAY)
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
-    pyautogui.moveTo(WINDOW_START_X + 235, WINDOW_START_Y + 650)
+    pyautogui.moveTo(378, 945)
     pyautogui.click()
     time.sleep(REFRESH_TOGGLE_DELAY)
-    pyautogui.moveTo(WINDOW_START_X + 720, WINDOW_START_Y + 430)
+    pyautogui.moveTo(1155, 664)
     if BUY_SHOP:
         pyautogui.click()
     time.sleep(POST_REFRESH_DELAY)
@@ -128,9 +136,9 @@ def process_shop_items(item_count, scroll):
 
 def buy_shop():
     """Handles buying items from the shop, refreshing when needed."""
-    if number_refreshes % CHECK_EVERY == 0:
-        if not(enough_resources()):
-            raise Exception("Insufficient resources, shop refreshing stopped.")
+    # if number_refreshes % CHECK_EVERY == 0:
+    #     if not(enough_resources()):
+    #         raise Exception("Insufficient resources, shop refreshing stopped.")
 
     process_shop_items(2, scroll=False) # Nr of items to buy from (used for coordinate estimation)
 
@@ -146,19 +154,18 @@ def buy_shop():
 #TODO: Fix pixel positions
 
 def read_shop_item(item, scroll):
-    top = 113 - TITLE_BAR_SIZE
-    item_height = 103
-    padding = 37
+    top = 150
+    padding = 64
     button_center = 80
-    item_left = 652
-    item_width = 450
-    item_height = 122
+    item_left = 1016
+    item_width = 400
+    item_height = 138
     if(scroll):
-        top = 154 #title-bar size already deduced
-    top = top + (item * 140)
+        top = 250 
+    top = top + (item * (item_height + padding))
     for_sale = capture_cropped_region(item_left,top,item_width,item_height)
     item_text = extract_text(for_sale, False)
-    print(item_text)
+    # print(item_text)
     if "Summon" not in item_text:
         return  # Early exit if "Summon" is not in text
     
@@ -169,12 +176,12 @@ def read_shop_item(item, scroll):
         return  # If neither, exit function
 
     # Buy the summon
-    pyautogui.moveTo(WINDOW_START_X + 1116, WINDOW_START_Y + top + 80) # Button center
+    pyautogui.moveTo(1650, WINDOW_START_Y + top + 100) # Button center
     pyautogui.click()
 
     time.sleep(POST_BUY_ITEM_CLICK_DELAY)
 
-    pyautogui.moveTo(WINDOW_START_X  + 690, WINDOW_START_Y + 490)
+    pyautogui.moveTo(1136,739)
     pyautogui.click()
 
     # Update the appropriate counter
@@ -196,15 +203,19 @@ if __name__ == "__main__":
     # top = tkinter.Tk()
     # top.mainloop()
     game_window = get_game_window()
-    WINDOW_START_X = game_window.left
-    WINDOW_START_Y = game_window.top + TITLE_BAR_SIZE
-
+    game_window.activate()
+    time.sleep(0.8)  # Wait for the window to come to the foreground
+    WINDOW_START_X = 6
+    WINDOW_START_Y = game_window.top + 11
+    print(WINDOW_START_Y)
+    pyautogui.moveTo(WINDOW_START_X, WINDOW_START_Y)
+    # pyautogui.click()
     start = datetime.now()
-    end_time = start + timedelta(seconds=10)
+    end_time = start + timedelta(seconds=REFRESH_TIME_IN_SECONDS)
     while datetime.now() < end_time:
         buy_shop()
         number_refreshes +=1
         if number_refreshes % PRINT_EVERY == 0:
             print(f"{covenant_counter} Covenent BMs bought and {mystic_counter} Mystics bought")
-
+    print(f"Finished running, bought {covenant_counter} Covenent BMs and {mystic_counter} Mystics")
 
