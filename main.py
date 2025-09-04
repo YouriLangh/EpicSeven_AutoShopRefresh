@@ -29,8 +29,11 @@ mystic_counter = 0
 covenant_counter = 0
 number_refreshes = 0
 
-
-
+# Note: These coordinates are based on a 1920x1080 resolution with 100% scaling.
+# If your resolution or scaling is different, you may need to adjust the coordinates accordingly.
+RANDOM_DELAY = 0.15  # Random delay between actions to mimic human behavior
+RANDOM_POSITION_OFFSET = 10  # Random offset for mouse positions to mimic human behavior
+RANDOM_POSITION_OFFSET_LARGE = 2 * RANDOM_POSITION_OFFSET  # Larger random offset for certain actions
 # Current screen size: 1250 x 733 
 #TODO: Add a force resize to this size perhaps ^ >> Bottom right corner is poorly captured --> impossible?
 # TODO: REplace every exception with a GUI error
@@ -87,23 +90,23 @@ def capture_cropped_region(left, top, width, height):
 #<< Click utils >>#
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
-    pyautogui.moveTo(int(1093+ random.uniform(-10, 10)), int(488 + random.uniform(-10, 10)))  # Move to start position
+    pyautogui.moveTo(int(1093+ random.uniform(-RANDOM_POSITION_OFFSET_LARGE, RANDOM_POSITION_OFFSET_LARGE)), int(488 + random.uniform(-RANDOM_POSITION_OFFSET_LARGE, RANDOM_POSITION_OFFSET_LARGE)))  # Move to start position
     # pyautogui.mouseDown()  # Click
     # Scroll a little
-    pyautogui.scroll(int(-650 + random.uniform(-10, 10)))  # Scroll down
+    pyautogui.scroll(int(-650 + random.uniform(-RANDOM_POSITION_OFFSET_LARGE, RANDOM_POSITION_OFFSET_LARGE)))  # Scroll down
     # pyautogui.moveTo(1093, 488 -200, duration=0.3)  # Drag
     # pyautogui.mouseUp()  # Release mouse
-    time.sleep(SCROLL_DELAY + random.uniform(-0.15, 0.15))  # Wait for the scroll to complete
+    time.sleep(SCROLL_DELAY + random.uniform(-RANDOM_DELAY, RANDOM_DELAY))  # Wait for the scroll to complete
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
-    pyautogui.moveTo(int(378+ random.uniform(-5, 5)), 945)
+    pyautogui.moveTo(int(378+ random.uniform(-RANDOM_POSITION_OFFSET, RANDOM_POSITION_OFFSET)), 945)
     pyautogui.click()
-    time.sleep(REFRESH_TOGGLE_DELAY+ random.uniform(-0.15, 0.15))
-    pyautogui.moveTo(int(1155+ random.uniform(-5, 5)), 664)
+    time.sleep(REFRESH_TOGGLE_DELAY+ random.uniform(-RANDOM_DELAY, RANDOM_DELAY))
+    pyautogui.moveTo(int(1155+ random.uniform(-RANDOM_POSITION_OFFSET, RANDOM_POSITION_OFFSET)), 664)
     if BUY_SHOP:
         pyautogui.click()
-    time.sleep(POST_REFRESH_DELAY+ random.uniform(-0.15, 0.15))
+    time.sleep(POST_REFRESH_DELAY+ random.uniform(-RANDOM_DELAY, RANDOM_DELAY))
 
 #<< Extra utils >>#
 def clean_number(text):
@@ -147,7 +150,7 @@ def buy_shop():
     process_shop_items(5, scroll=True)
 
 
-    time.sleep(POST_CYCLE_DELAY+ random.uniform(-0.15, 0.15))
+    time.sleep(POST_CYCLE_DELAY+ random.uniform(-RANDOM_DELAY, RANDOM_DELAY))
     # Refresh the shop
     refresh_shop()
 
@@ -156,7 +159,6 @@ def buy_shop():
 def read_shop_item(item, scroll):
     top = 150
     padding = 64
-    button_center = 80
     item_left = 1016
     item_width = 400
     item_height = 138
@@ -176,12 +178,12 @@ def read_shop_item(item, scroll):
         return  # If neither, exit function
 
     # Buy the summon
-    pyautogui.moveTo(int(1650 + random.uniform(-5, 5)), int(WINDOW_START_Y + top + 100)) # Button center
+    pyautogui.moveTo(int(1650 + random.uniform(-RANDOM_POSITION_OFFSET, RANDOM_POSITION_OFFSET)), int(WINDOW_START_Y + top + 100)) # Button center
     pyautogui.click()
 
-    time.sleep(POST_BUY_ITEM_CLICK_DELAY+ random.uniform(-0.15, 0.15))
+    time.sleep(POST_BUY_ITEM_CLICK_DELAY+ random.uniform(-RANDOM_DELAY, RANDOM_DELAY))
 
-    pyautogui.moveTo(int(1136 + random.uniform(-5, 5)), 739)
+    pyautogui.moveTo(int(1136 + random.uniform(-RANDOM_POSITION_OFFSET, RANDOM_POSITION_OFFSET)), 739)
     pyautogui.click()
 
     # Update the appropriate counter
@@ -193,28 +195,25 @@ def read_shop_item(item, scroll):
     time.sleep(2)
 
 
-
-
-
-
-
-
 if __name__ == "__main__":
-    # top = tkinter.Tk()
-    # top.mainloop()
-    game_window = get_game_window()
-    game_window.activate()
-    time.sleep(0.8)  # Wait for the window to come to the foreground
-    WINDOW_START_X = 6
-    WINDOW_START_Y = game_window.top + 11
-    pyautogui.moveTo(WINDOW_START_X, WINDOW_START_Y)
-    # pyautogui.click()
-    start = datetime.now()
-    end_time = start + timedelta(seconds=REFRESH_TIME_IN_SECONDS)
-    while datetime.now() < end_time:
-        buy_shop()
-        number_refreshes +=1
-        if number_refreshes % PRINT_EVERY == 0:
-            print(f"{covenant_counter} Covenent BMs bought and {mystic_counter} Mystics bought")
-    print(f"Finished running, bought {covenant_counter} Covenent BMs and {mystic_counter} Mystics")
-
+    try:
+        # top = tkinter.Tk()
+        # top.mainloop()
+        game_window = get_game_window()
+        game_window.activate()
+        time.sleep(0.8)  # Wait for the window to come to the foreground
+        WINDOW_START_X = 6
+        WINDOW_START_Y = game_window.top + 11
+        pyautogui.moveTo(WINDOW_START_X, WINDOW_START_Y)
+        # pyautogui.click()
+        start = datetime.now()
+        end_time = start + timedelta(seconds=REFRESH_TIME_IN_SECONDS)
+        while datetime.now() < end_time:
+            buy_shop()
+            number_refreshes +=1
+            # if covenant_counter + mystic_counter > 0:
+            print(f"{covenant_counter} Covenant BMs bought and {mystic_counter} Mystics bought", end='\r')
+    except KeyboardInterrupt:
+        print("")
+        print("Consumed {} skystones and {} gold".format(number_refreshes * 3, mystic_counter * 280_000 + covenant_counter * 184_000))
+        print("")
