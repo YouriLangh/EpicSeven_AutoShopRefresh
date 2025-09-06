@@ -13,3 +13,5 @@ Press Win + R → type sysdm.cpl → Advanced tab → Environment Variables.
 Under System variables, edit Path, add:
 
 C:\Program Files\Tesseract-OCR
+
+VSCode has to be ran in administrator to be able to access ui outside of VSCode
