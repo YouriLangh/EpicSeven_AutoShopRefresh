@@ -23,7 +23,7 @@ REFRESH_TOGGLE_DELAY = 1
 POST_REFRESH_DELAY = 1.4
 TITLE_BAR_SIZE = 30  # 23 for large screen
 POST_BUY_ITEM_CLICK_DELAY = 0.6
-REFRESH_TIME_IN_SECONDS = 60 * 30  # 30 minutes
+REFRESH_TIME_IN_SECONDS = 60 * 30  * 2 # 30 minutes
 BUY_SHOP = True
 mystic_counter = 0
 covenant_counter = 0
@@ -213,6 +213,10 @@ if __name__ == "__main__":
             number_refreshes +=1
             # if covenant_counter + mystic_counter > 0:
             print(f"{covenant_counter} Covenant BMs bought and {mystic_counter} Mystics bought", end='\r')
+
+        print("")
+        print("Consumed {} skystones and {} gold".format(number_refreshes * 3, mystic_counter * 280_000 + covenant_counter * 184_000))
+        print("")
     except KeyboardInterrupt:
         print("")
         print("Consumed {} skystones and {} gold".format(number_refreshes * 3, mystic_counter * 280_000 + covenant_counter * 184_000))
