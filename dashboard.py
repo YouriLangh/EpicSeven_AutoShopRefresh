@@ -61,6 +61,10 @@ class Dashboard:
     def _separator(self, parent):
         tk.Frame(parent, bg=LINE, height=1).pack(fill="x", pady=6)
 
+    def _section(self, parent, title):
+        tk.Label(parent, text=title, bg=BG, fg=MUTED,
+                 font=("Segoe UI Semibold", 8), anchor="w").pack(fill="x")
+
     def _row(self, parent, label, colour=TEXT, font=FONT_NUM):
         row = tk.Frame(parent, bg=BG)
         row.pack(fill="x", pady=1)
@@ -84,17 +88,23 @@ class Dashboard:
         self._separator(pad)
 
         self.w_refresh = self._row(pad, "Refresh")
+        bar_row = tk.Frame(pad, bg=BG)
+        bar_row.pack(fill="x", pady=(5, 7))
         # width=1 matters: a tk.Canvas otherwise requests its 378px default
         # and silently sets the whole window width.
-        self.bar = tk.Canvas(pad, height=BAR_HEIGHT, width=1, bg=LINE,
+        self.bar = tk.Canvas(bar_row, height=BAR_HEIGHT, width=1, bg=LINE,
                              highlightthickness=0, bd=0)
-        self.bar.pack(fill="x", pady=(5, 7))
+        self.bar.pack(side="left", fill="x", expand=True, pady=3)
         self.bar_fill = self.bar.create_rectangle(0, 0, 0, BAR_HEIGHT,
                                                   fill=LIME, width=0)
+        self.w_percent = tk.Label(bar_row, text="0%", bg=BG, fg=LIME,
+                                  font=FONT_SMALL, width=6, anchor="e")
+        self.w_percent.pack(side="right")
 
-        self.w_burnt = self._row(pad, "Burnt")
+        self._section(pad, "RESOURCES")
         self.w_gold = self._row(pad, "Gold", GOLD)
         self.w_stones = self._row(pad, "Skystones", STONE)
+        self.w_burnt = self._row(pad, "Burnt", FAIR)
 
         self._separator(pad)
 
@@ -170,7 +180,8 @@ class Dashboard:
         """ Push one stats_snapshot() dict into the widgets. """
         self.w_status.configure(text=s["status"])
         self.w_refresh.configure(text=self._progress_text(s))
-        self.w_burnt.configure(text="%s SS" % thousands(s["skystones_spent"]))
+        spent = s["skystones_spent"]
+        self.w_burnt.configure(text="0" if not spent else "-%s" % thousands(spent))
         self.w_gold.configure(text=thousands(s["gold"]))
         self.w_stones.configure(text=thousands(s["skystones"]))
         self.w_bookmarks.configure(text=str(s["covenant"]))
@@ -181,9 +192,10 @@ class Dashboard:
         self.w_ratio.configure(text=ratio, fg=colour)
         self.w_luck.configure(text=detail, fg=MUTED)
 
+        fraction = self._progress_fraction(s)
+        self.w_percent.configure(text="%.1f%%" % (fraction * 100))
         width = self.bar.winfo_width()
-        self.bar.coords(self.bar_fill, 0, 0,
-                        int(width * self._progress_fraction(s)), BAR_HEIGHT)
+        self.bar.coords(self.bar_fill, 0, 0, int(width * fraction), BAR_HEIGHT)
 
     def poll(self, snapshot, interval=250):
         """ Re-read the worker's stats every `interval` ms. """
@@ -218,8 +230,8 @@ if __name__ == "__main__":
             "skystones": 56882,
             "covenant": refreshes // 100,
             "mystic": refreshes // 320,
-            "expected_covenant": 0.05,
-            "expected_mystic": 0.025,
+            "expected_covenant": 0.042,
+            "expected_mystic": 0.011,
         }
 
     dash = Dashboard()

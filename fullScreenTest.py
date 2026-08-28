@@ -28,11 +28,11 @@ MAX_REFRESHES = None                # e.g. 2000, or None
 SKYSTONES_PER_REFRESH = 3
 
 # Community-gathered Secret Shop rates - the chance that any single refresh
-# contains at least one of these. These are player-collected figures from
-# Reddit threads and community spreadsheets, NOT official published rates,
-# and different data sets disagree. Adjust to whatever numbers you trust.
-EXPECTED_COVENANT_RATE = 0.05    # Covenant Bookmarks, ~1 in 20 refreshes
-EXPECTED_MYSTIC_RATE = 0.025     # Mystic Medals, ~1 in 40 refreshes
+# contains at least one of these. Derived from epic7db's currency guide:
+# ~71 skystones per Covenant Bookmark pack and ~271 per Mystic Medal pack,
+# at 3 skystones per refresh. Player-collected, NOT official rates.
+EXPECTED_COVENANT_RATE = 0.042   # Covenant Bookmarks, ~1 in 24 refreshes
+EXPECTED_MYSTIC_RATE = 0.011     # Mystic Medals, ~1 in 90 refreshes
 SCROLL_DELAY = 0.4
 POST_CYCLE_DELAY = 1.1
 REFRESH_TOGGLE_DELAY = 1.1
@@ -51,6 +51,7 @@ last_gold = None
 last_skystones = None
 recent_wishes = deque(maxlen=6)
 run_start = None
+run_end = None                  # set when the run stops; freezes the timer
 run_status = "starting"
 stop_requested = False
 
@@ -173,7 +174,8 @@ def process_shop_items(item_count, scroll):
 def stats_snapshot():
     """ Everything the dashboard shows, as plain values. Read from the GUI
         thread while the worker thread writes them - all simple assignments. """
-    elapsed = (datetime.now() - run_start).total_seconds() if run_start else 0
+    now = run_end or datetime.now()
+    elapsed = (now - run_start).total_seconds() if run_start else 0
     return {
         "status": run_status,
         "refreshes": number_refreshes,
@@ -198,7 +200,7 @@ def request_stop():
 
 def run_bot():
     """ The shop loop. Runs on a worker thread so the GUI stays responsive. """
-    global number_refreshes, run_status
+    global number_refreshes, run_status, run_end
     try:
         while True:
             if stop_requested:
@@ -215,6 +217,8 @@ def run_bot():
             number_refreshes += 1
     except Exception as error:
         run_status = str(error)
+    finally:
+        run_end = datetime.now()
 
 
 def buy_shop():
