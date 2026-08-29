@@ -7,6 +7,7 @@ import pyautogui
 import time
 from datetime import datetime,timedelta
 import re
+import os
 import threading
 from collections import deque
 
@@ -23,7 +24,7 @@ MINIMUM_GOLD = 7_000_000
 MINIMUM_SKYSTONES = 2_000
 # Stop conditions. Set either to None to disable it; whichever is reached
 # first ends the run. At least one of the two must be set.
-RUN_DURATION = timedelta(hours=1)   # e.g. timedelta(minutes=30), or None
+RUN_DURATION = timedelta(hours=2)   # e.g. timedelta(minutes=30), or None
 MAX_REFRESHES = None                # e.g. 2000, or None
 SKYSTONES_PER_REFRESH = 3
 
@@ -56,10 +57,23 @@ run_status = "starting"
 stop_requested = False
 
 # While background battling is running the game adds an extra icon to the
-# top-right cluster, which pushes the gold/skystone readout one icon further
-# to the left. Measured icon pitch is 82px (48px icon + 34px padding).
-BACKGROUND_BATTLING = False
-ICON_PITCH = 82
+# top-right cluster, pushing the gold/skystone readout left - and NOT by a
+# uniform amount, so each layout gets its own measured regions.
+# BACKGROUND_BATTLING is detected once at startup from the swirl icon.
+BACKGROUND_BATTLING = True
+CURRENCY_REGIONS = {                      # (left, top, width, height)
+    False: {"gold": (1145, 25, 175, 45), "skystones": (1360, 25, 120, 45)},
+    True:  {"gold": (1060, 20, 180, 50), "skystones": (1250, 20, 145, 50)},
+}
+
+# The background-battling swirl icon occupies a fixed spot in the top bar.
+# Template-matching it there is how the active layout is detected (verified
+# scores: 0.98 with the icon present, 0.17 against the normal layout).
+BB_ICON_SEARCH = (1408, 15, 100, 75)
+BB_ICON_THRESHOLD = 0.6
+_bb_icon = cv2.imread(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "bb_icon.png"),
+    cv2.IMREAD_GRAYSCALE)
 
 # Current screen size: 1250 x 733 
 #TODO: Add a force resize to this size perhaps ^ >> Bottom right corner is poorly captured --> impossible?
@@ -142,21 +156,40 @@ def clean_number(text):
 
 
 #<< Epic Seven utils >>#
-def currency_offset():
-    """ Horizontal shift of the gold/skystone readout for the current top bar. """
-    return -ICON_PITCH if BACKGROUND_BATTLING else 0
+def detect_background_battling():
+    """ Is the background-battling swirl icon currently in the top bar?
+        A wrong-layout crop can still parse as a (wrong) number, so the icon
+        is the only trustworthy signal - not the OCR result. """
+    if _bb_icon is None:
+        return BACKGROUND_BATTLING     # bb_icon.png missing; trust the flag
+    area = capture_cropped_region(*BB_ICON_SEARCH)
+    score = cv2.matchTemplate(area, _bb_icon, cv2.TM_CCOEFF_NORMED).max()
+    return score >= BB_ICON_THRESHOLD
+
+
+def read_currency(name):
+    """ Read one top-bar amount from the active layout, with the other
+        layout as a last-resort fallback. BACKGROUND_BATTLING is set once
+        at startup - the icon stays put until it is clicked away. """
+    for mode in (BACKGROUND_BATTLING, not BACKGROUND_BATTLING):
+        left, top, width, height = CURRENCY_REGIONS[mode][name]
+        text = clean_number(
+            extract_text(capture_cropped_region(left, top, width, height), True)).strip()
+        if text:
+            return float(text)
+    raise Exception(
+        "OCR read no " + name + " in either top-bar layout - the window size "
+        "probably changed. Re-measure CURRENCY_REGIONS.")
 
 def get_gold():
     """ Retrieves the current amount of gold the player has. """
 
-    gold_string = extract_text(capture_cropped_region(left=1145 + currency_offset(), top= 25, width= 175, height= 45), True)
-    return float(clean_number(gold_string))
+    return read_currency("gold")
 
 def get_ss():
 
     """ Retrieves the current number of skystones the player has. """
-    skystones_string = extract_text(capture_cropped_region(left=1360 + currency_offset(), top= 25, width= 120, height= 45), True)
-    return float(clean_number(skystones_string))
+    return read_currency("skystones")
 
 def enough_resources():
     """ Check whether the amount of resources the player has are lower than the set thresholds."""
@@ -293,6 +326,8 @@ if __name__ == "__main__":
     game_window = get_game_window()
     WINDOW_START_X = game_window.left
     WINDOW_START_Y = game_window.top + TITLE_BAR_SIZE
+    BACKGROUND_BATTLING = detect_background_battling()
+    print("Background battling detected:", BACKGROUND_BATTLING)
     pyautogui.moveTo(WINDOW_START_X + 5, WINDOW_START_Y - 10)
     pyautogui.click()
 
