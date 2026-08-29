@@ -131,23 +131,44 @@ def capture_cropped_region(left, top, width, height):
 
 
 
+class StopRun(Exception):
+    """ Raised inside the worker when the Stop button was pressed. """
+
+
+def check_stop():
+    if stop_requested:
+        raise StopRun()
+
+
+def wait(seconds):
+    """ Interruptible sleep - reacts to the Stop button within ~50ms
+        instead of finishing the full delay first. """
+    end = time.time() + seconds
+    while time.time() < end:
+        check_stop()
+        time.sleep(0.05)
+    check_stop()
+
+
 #<< Click utils >>#
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
+    check_stop()
     pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 500)  # Move to start position
     pyautogui.mouseDown()  # Click
     pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 50 , duration=0.4)  # Drag
     pyautogui.mouseUp()  # Release mouse
-    time.sleep(SCROLL_DELAY)
+    wait(SCROLL_DELAY)
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
+    check_stop()
     pyautogui.moveTo(WINDOW_START_X + 375, WINDOW_START_Y + 930)
     pyautogui.click()
-    time.sleep(REFRESH_TOGGLE_DELAY)
+    wait(REFRESH_TOGGLE_DELAY)
     pyautogui.moveTo(WINDOW_START_X + 1100, WINDOW_START_Y + 650)
     if(REFRESH_SHOP): pyautogui.click()
-    time.sleep(POST_REFRESH_DELAY)
+    wait(POST_REFRESH_DELAY)
 
 #<< Extra utils >>#
 def clean_number(text):
@@ -248,6 +269,8 @@ def run_bot():
             run_status = "running"
             buy_shop()
             number_refreshes += 1
+    except StopRun:
+        run_status = "stopped"
     except Exception as error:
         run_status = str(error)
     finally:
@@ -274,6 +297,7 @@ def buy_shop():
 #TODO: Fix pixel positions
 
 def read_shop_item(item, scroll):
+    check_stop()
     top = 151 - TOP_BAR_SIZE
     item_height = 140
     padding = 55
@@ -300,7 +324,7 @@ def read_shop_item(item, scroll):
     pyautogui.moveTo(WINDOW_START_X + 1700, WINDOW_START_Y + top + 100) # Button center
     pyautogui.click()
 
-    time.sleep(POST_BUY_ITEM_CLICK_DELAY)
+    wait(POST_BUY_ITEM_CLICK_DELAY)
 
     pyautogui.moveTo(WINDOW_START_X  + 1115, WINDOW_START_Y + 730)
     pyautogui.click()
@@ -313,7 +337,7 @@ def read_shop_item(item, scroll):
         mystic_counter += 1 
     recent_wishes.append((datetime.now().strftime("%H:%M:%S"),
                           "Covenant Bookmarks" if is_covenant else "Mystic Medals"))
-    time.sleep(2)
+    wait(2)
 
 # py -3.9 main.py
 if __name__ == "__main__":

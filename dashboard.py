@@ -179,6 +179,10 @@ class Dashboard:
     def update(self, s):
         """ Push one stats_snapshot() dict into the widgets. """
         self.w_status.configure(text=s["status"])
+        # Once the worker has actually ended, confirm it on the button.
+        # The window itself stays open for verification until X is clicked.
+        if s["status"] not in ("running", "starting"):
+            self.w_button.configure(text="Stopped", state="disabled")
         self.w_refresh.configure(text=self._progress_text(s))
         spent = s["skystones_spent"]
         self.w_burnt.configure(text="0" if not spent else "-%s" % thousands(spent))
