@@ -131,6 +131,61 @@ def capture_cropped_region(left, top, width, height):
 
 
 
+# Hand-back-the-mouse behaviour: if the cursor is somewhere the bot did not
+# put it, the user has taken the mouse. The bot halts at its current step and
+# resumes only after the mouse has been still for USER_IDLE_RESUME seconds.
+MOUSE_TOLERANCE = 8          # px of drift before it counts as user movement
+USER_IDLE_RESUME = 5.0       # seconds of stillness before the bot resumes
+user_paused = False
+_bot_mouse_lock = threading.Lock()   # held while the bot itself is moving
+_expected_pos = None                 # where the bot last left the cursor
+
+
+def bot_move(x, y, duration=0.0):
+    """ All bot cursor movement goes through here so the watcher can tell
+        bot moves apart from user moves. """
+    global _expected_pos
+    with _bot_mouse_lock:
+        pyautogui.moveTo(x, y, duration=duration)
+        _expected_pos = (x, y)
+
+
+def bot_drag(x1, y1, x2, y2, duration):
+    global _expected_pos
+    with _bot_mouse_lock:
+        pyautogui.moveTo(x1, y1)
+        pyautogui.mouseDown()
+        pyautogui.moveTo(x2, y2, duration=duration)
+        pyautogui.mouseUp()
+        _expected_pos = (x2, y2)
+
+
+def _mouse_watcher():
+    """ Daemon thread: flips user_paused when the cursor strays from where
+        the bot left it, and clears it after USER_IDLE_RESUME s of stillness. """
+    global user_paused, _expected_pos
+    last_pos = pyautogui.position()
+    last_move_time = time.time()
+    while True:
+        time.sleep(0.1)
+        pos = pyautogui.position()
+        if _bot_mouse_lock.locked():         # bot is moving; not user input
+            last_pos = pos
+            continue
+        if not user_paused:
+            if _expected_pos is not None and (
+                    abs(pos[0] - _expected_pos[0]) > MOUSE_TOLERANCE or
+                    abs(pos[1] - _expected_pos[1]) > MOUSE_TOLERANCE):
+                user_paused = True
+                last_pos, last_move_time = pos, time.time()
+        else:
+            if abs(pos[0] - last_pos[0]) > 2 or abs(pos[1] - last_pos[1]) > 2:
+                last_pos, last_move_time = pos, time.time()
+            elif time.time() - last_move_time >= USER_IDLE_RESUME:
+                _expected_pos = pos          # accept wherever the user left it
+                user_paused = False
+
+
 class StopRun(Exception):
     """ Raised inside the worker when the Stop button was pressed. """
 
@@ -138,6 +193,10 @@ class StopRun(Exception):
 def check_stop():
     if stop_requested:
         raise StopRun()
+    while user_paused:                       # halted until the mouse is idle
+        if stop_requested:
+            raise StopRun()
+        time.sleep(0.1)
 
 
 def wait(seconds):
@@ -154,19 +213,17 @@ def wait(seconds):
 def scroll_shop():
     """ Click and drag inside the shop to show more items. """
     check_stop()
-    pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 500)  # Move to start position
-    pyautogui.mouseDown()  # Click
-    pyautogui.moveTo(WINDOW_START_X + 1000, WINDOW_START_Y + 50 , duration=0.4)  # Drag
-    pyautogui.mouseUp()  # Release mouse
+    bot_drag(WINDOW_START_X + 1000, WINDOW_START_Y + 500,
+             WINDOW_START_X + 1000, WINDOW_START_Y + 50, duration=0.4)
     wait(SCROLL_DELAY)
 
 def refresh_shop(): #Already accounts for title_bar size
     """ Refreshes the shop. """
     check_stop()
-    pyautogui.moveTo(WINDOW_START_X + 375, WINDOW_START_Y + 930)
+    bot_move(WINDOW_START_X + 375, WINDOW_START_Y + 930)
     pyautogui.click()
     wait(REFRESH_TOGGLE_DELAY)
-    pyautogui.moveTo(WINDOW_START_X + 1100, WINDOW_START_Y + 650)
+    bot_move(WINDOW_START_X + 1100, WINDOW_START_Y + 650)
     if(REFRESH_SHOP): pyautogui.click()
     wait(POST_REFRESH_DELAY)
 
@@ -230,8 +287,11 @@ def stats_snapshot():
         thread while the worker thread writes them - all simple assignments. """
     now = run_end or datetime.now()
     elapsed = (now - run_start).total_seconds() if run_start else 0
+    status = run_status
+    if user_paused and status == "running":
+        status = "paused (mouse in use)"
     return {
-        "status": run_status,
+        "status": status,
         "refreshes": number_refreshes,
         "max_refreshes": MAX_REFRESHES,
         "duration_seconds": RUN_DURATION.total_seconds() if RUN_DURATION else None,
@@ -321,12 +381,12 @@ def read_shop_item(item, scroll):
         return  # If neither, exit function
 
     # Buy the summon
-    pyautogui.moveTo(WINDOW_START_X + 1700, WINDOW_START_Y + top + 100) # Button center
+    bot_move(WINDOW_START_X + 1700, WINDOW_START_Y + top + 100) # Button center
     pyautogui.click()
 
     wait(POST_BUY_ITEM_CLICK_DELAY)
 
-    pyautogui.moveTo(WINDOW_START_X  + 1115, WINDOW_START_Y + 730)
+    bot_move(WINDOW_START_X + 1115, WINDOW_START_Y + 730)
     pyautogui.click()
 
     # Update the appropriate counter
@@ -352,8 +412,10 @@ if __name__ == "__main__":
     WINDOW_START_Y = game_window.top + TITLE_BAR_SIZE
     BACKGROUND_BATTLING = detect_background_battling()
     print("Background battling detected:", BACKGROUND_BATTLING)
-    pyautogui.moveTo(WINDOW_START_X + 5, WINDOW_START_Y - 10)
+    bot_move(WINDOW_START_X + 5, WINDOW_START_Y - 10)
     pyautogui.click()
+
+    threading.Thread(target=_mouse_watcher, daemon=True).start()
 
     run_start = datetime.now()
     view = dashboard.Dashboard(on_stop=request_stop)

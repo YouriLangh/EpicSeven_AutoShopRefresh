@@ -181,7 +181,7 @@ class Dashboard:
         self.w_status.configure(text=s["status"])
         # Once the worker has actually ended, confirm it on the button.
         # The window itself stays open for verification until X is clicked.
-        if s["status"] not in ("running", "starting"):
+        if s["status"] not in ("running", "starting") and not s["status"].startswith("paused"):
             self.w_button.configure(text="Stopped", state="disabled")
         self.w_refresh.configure(text=self._progress_text(s))
         spent = s["skystones_spent"]
